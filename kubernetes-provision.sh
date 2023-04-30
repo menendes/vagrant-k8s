@@ -55,6 +55,11 @@ if [[ $ROLE == "master" ]]; then
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/tigera-operator.yaml
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/custom-resources.yaml
   kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+  
+  # Install Helm
+  curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+  chmod 700 get_helm.sh
+  sudo ./get_helm.sh
 fi
 
 # Join the worker nodes to the Kubernetes cluster
