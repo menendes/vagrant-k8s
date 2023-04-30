@@ -32,8 +32,19 @@ sudo systemctl enable containerd
 sudo systemctl start containerd
 
 # Initialize the Kubernetes control plane on the master node
-if [[ $ROLE == "master" ]]; then
-  sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+if [[ $ROLE == "master" ]]; then 
+  # Get the IP address of the master node
+  MASTER_IP=$(hostname -I | awk '{print $2}') 
+  
+  #initialize cluster--control-plane=
+  sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address=$MASTER_IP
+  
+  #get join command
+  JOIN_CMD=$(kubeadm token create --print-join-command)
+  
+  # Write the required values to a file
+  echo "export KUBERNETES_MASTER_IP=$MASTER_IP" > /vagrant/k8s.env
+  echo "export KUBERNETES_JOIN_COMMAND='$JOIN_CMD'" >> /vagrant/k8s.env
 
   # Configure kubectl for the current user
   mkdir -p $HOME/.kube
@@ -41,14 +52,15 @@ if [[ $ROLE == "master" ]]; then
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
   # Install Calico CNI
-  #kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/tigera-operator.yaml
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/custom-resources.yaml
   kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-  
 fi
 
 # Join the worker nodes to the Kubernetes cluster
 if [[ $ROLE == "worker"* ]]; then
-  sudo kubeadm join <kubernetes-master-ip>:6443 --token <token> --discovery-token-ca-cert-hash <hash>
+  # Get Kubernetes master IP and token from environment variables
+  source /vagrant/k8s.env
+  export KUBERNETES_NODE_NAME=#{worker.vm.hostname}
+  sudo $KUBERNETES_JOIN_COMMAND
 fi
